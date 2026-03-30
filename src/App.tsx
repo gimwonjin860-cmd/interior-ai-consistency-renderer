@@ -17,7 +17,7 @@ import {
   Lock,
   Unlock
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { generateRender } from './services/geminiService';
 
 declare global {
@@ -120,9 +120,9 @@ export default function App() {
   if (!apiKeySelected) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 font-sans">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+        <div 
+          
+          
           className="max-w-md w-full text-center space-y-8"
         >
           <div className="flex justify-center">
@@ -161,7 +161,7 @@ export default function App() {
               </a>
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -335,13 +335,13 @@ export default function App() {
             </div>
 
             <div className="flex-1 flex items-center justify-center p-8 relative">
-              <AnimatePresence mode="wait">
+              
                 {isGenerating ? (
-                  <motion.div 
+                  <div 
                     key="loading"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
+                    
+                    
+                    
                     className="text-center space-y-6"
                   >
                     <div className="relative w-24 h-24 mx-auto">
@@ -352,12 +352,12 @@ export default function App() {
                       <p className="text-xl font-bold">참조 이미지의 스타일을 분석 중입니다</p>
                       <p className="text-sm text-gray-500">마감재, 가구, 오브젝트를 정밀하게 이식하고 있습니다...</p>
                     </div>
-                  </motion.div>
+                  </div>
                 ) : resultImage ? (
-                  <motion.div 
+                  <div 
                     key="result"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    
+                    
                     className="w-full h-full flex flex-col items-center justify-center gap-4"
                   >
                     <img 
@@ -377,14 +377,14 @@ export default function App() {
                         이 결과물을 다음 작업의 스타일 기준으로 고정
                       </button>
                     </div>
-                  </motion.div>
+                  </div>
                 ) : (
                   <div className="text-center space-y-4 opacity-30">
                     <ImageIcon size={80} className="mx-auto" />
                     <p className="text-lg font-medium">왼쪽에서 대상 사진과 참조 사진을 업로드하세요</p>
                   </div>
                 )}
-              </AnimatePresence>
+              
             </div>
           </div>
         </div>
