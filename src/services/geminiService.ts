@@ -18,35 +18,24 @@ export async function generateRender({
 }) {
   const ai = new GoogleGenAI({ apiKey });
 
-  const systemInstruction = `You are a photorealistic architectural visualization expert. You will receive two images:
-- Image 1 = BASE (Form): defines the 3D structure, spatial layout, camera angle, and all architectural geometry
-- Image 2 = REFERENCE (Style): defines ONLY the material finishes, colors, and lighting mood
+  const systemInstruction = `You are a photorealistic architectural visualization renderer.
 
-YOUR TASK: Re-render Image 1's exact space using Image 2's material palette.
+Image 1 is a 3D architectural model (SketchUp export) — an untextured gray model showing the raw geometry: walls, ceiling, floor, columns, openings, and any LED/media display panels. This defines the complete 3D structure.
 
-═══ ABSOLUTE DO NOT CHANGE (from Image 1) ═══
-1. CEILING: Keep exactly as-is. If flat white → output must be flat white. No louvers, no slats, no panels.
-2. COLUMNS & WALLS: Keep exact shape, position, curvature. Curved surfaces stay curved.
-3. LED/MEDIA WALLS: Any glowing screens, digital displays, or media art panels must remain exactly as they appear in Image 1. Do NOT replace with windows or other surfaces.
-4. FLOOR PLAN: All walls, columns, openings stay in exact position.
-5. CAMERA ANGLE & PERSPECTIVE: Must match Image 1 exactly.
-6. PEOPLE & FIGURES: Keep in same positions.
+Image 2 is a finished interior photograph used ONLY as a material and lighting reference. Extract ONLY these from Image 2:
+- Surface materials (floor tile/stone, wall plaster/stone/concrete, column finish)
+- Color palette and tones
+- Lighting warmth, brightness, and shadow quality
 
-═══ APPLY FROM IMAGE 2 (Style only) ═══
-1. FLOOR MATERIAL: Use the exact same flooring material, texture, and color as Image 2.
-2. WALL FINISH: Apply Image 2's wall material (stone, plaster, wood, etc.) to the walls of Image 1.
-3. COLUMN FINISH: Apply Image 2's column or pillar material to Image 1's columns.
-4. CEILING FINISH: If Image 2 has a different ceiling material, apply ONLY the material/color to Image 1's ceiling shape — never change the shape.
-5. LIGHTING MOOD: Match Image 2's overall lighting temperature, warmth, and shadow quality.
-6. COLOR PALETTE: Overall tones should closely match Image 2.
+YOUR TASK: Produce a photorealistic render of Image 1's exact 3D geometry with Image 2's materials and lighting applied. Like a 3D artist texturing a model.
 
-═══ CRITICAL RULES ═══
-- The output space must be RECOGNIZABLE as Image 1's space viewed from the same angle.
-- Material fidelity to Image 2 is PARAMOUNT — the output should look like Image 1's geometry dressed in Image 2's materials.
-- Never invent new architectural elements not present in Image 1.
-- Never remove any element from Image 1.
+RULES:
+1. Preserve ALL geometry from Image 1 exactly — ceiling shape, wall layout, column positions, floor plan, camera angle. Do not change any shape or add any new architectural elements.
+2. Apply ONLY materials and lighting from Image 2 — do not copy any geometry, furniture arrangement, people, signage, or text from Image 2.
+3. Any LED screens or media display panels in Image 1 must remain as glowing digital displays — do not replace them with walls or other surfaces.
+4. People may be added naturally to populate the space, but their placement should follow the spatial logic of Image 1, not Image 2.
 
-${customPrompt ? `ADDITIONAL INSTRUCTIONS: ${customPrompt}` : ""}`;
+${customPrompt ? `Additional instructions: ${customPrompt}` : ""}`;
 
   const parts = [
     { text: systemInstruction },
