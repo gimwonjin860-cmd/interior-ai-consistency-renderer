@@ -1,0 +1,7 @@
+{
+  "name": "Interior AI Consistency Renderer",
+  "description": "Maintain consistent style and materials across different camera angles for interior design renders using Gemini AI.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
