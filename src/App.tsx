@@ -1,30 +1,10 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Upload, 
-  Image as ImageIcon, 
-  RefreshCw, 
-  CheckCircle2, 
-  AlertCircle, 
-  Layers, 
-  Camera,
-  ChevronRight,
-  Download,
-  Lock,
-  Unlock
-} from 'lucide-react';
+import { Upload, RefreshCw, Download, Lock, Unlock, Plus, ChevronRight } from 'lucide-react';
 import { generateRender } from './services/geminiService';
 
 declare global {
   interface Window {
-    aistudio: {
-      hasSelectedApiKey: () => Promise<boolean>;
-      openSelectKey: () => Promise<void>;
-    };
+    aistudio: { hasSelectedApiKey: () => Promise<boolean>; openSelectKey: () => Promise<void>; };
   }
 }
 
@@ -36,29 +16,20 @@ export default function App() {
   const [customPrompt, setCustomPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
+  const [history, setHistory] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-
   const baseInputRef = useRef<HTMLInputElement>(null);
   const refInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { checkApiKey(); }, []);
 
   const checkApiKey = async () => {
-    if (window.aistudio) {
-      const hasKey = await window.aistudio.hasSelectedApiKey();
-      setApiKeySelected(hasKey);
-      return;
-    }
-    if (import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY) {
-      setApiKeySelected(true);
-    }
+    if (window.aistudio) { const hasKey = await window.aistudio.hasSelectedApiKey(); setApiKeySelected(hasKey); return; }
+    if (import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY) setApiKeySelected(true);
   };
 
   const handleOpenKeyDialog = async () => {
-    if (window.aistudio) {
-      await window.aistudio.openSelectKey();
-      setApiKeySelected(true);
-    }
+    if (window.aistudio) { await window.aistudio.openSelectKey(); setApiKeySelected(true); }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'base' | 'ref') => {
@@ -73,27 +44,16 @@ export default function App() {
   };
 
   const handleGenerate = async () => {
-    if (!baseImage || !referenceImage) {
-      setError('공간 사진과 스타일 참조 이미지를 모두 업로드해주세요.');
-      return;
-    }
-    setIsGenerating(true);
-    setError(null);
+    if (!baseImage || !referenceImage) { setError('두 이미지를 모두 업로드해주세요.'); return; }
+    setIsGenerating(true); setError(null);
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
       const result = await generateRender({ apiKey, baseImage, referenceImage, customPrompt });
       setResultImage(result);
+      setHistory(prev => [result, ...prev]);
     } catch (err: any) {
-      console.error(err);
-      if (err.message?.includes('Requested entity was not found')) {
-        setApiKeySelected(false);
-        setError('API 키를 다시 선택해주세요.');
-      } else {
-        setError('렌더링 중 오류가 발생했습니다. 다시 시도해주세요.');
-      }
-    } finally {
-      setIsGenerating(false);
-    }
+      setError('렌더링 중 오류가 발생했습니다.');
+    } finally { setIsGenerating(false); }
   };
 
   const downloadResult = () => {
@@ -106,29 +66,17 @@ export default function App() {
 
   if (!apiKeySelected) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6">
-        <div className="max-w-md w-full text-center space-y-8">
-          <div className="flex justify-center">
-            <div className="w-20 h-20 bg-orange-500 rounded-3xl flex items-center justify-center">
-              <Layers size={40} className="text-white" />
-            </div>
-          </div>
-          <div className="space-y-4">
-            <h1 className="text-4xl font-bold">Interior Style Transfer</h1>
-            <p className="text-gray-400">참조 이미지의 색감, 재질, 조명 스타일만 추출하여 현재 공간에 자연스럽게 입힙니다.</p>
-          </div>
+      <div className="min-h-screen bg-[#111] text-white flex items-center justify-center">
+        <div className="text-center space-y-6 max-w-sm">
+          <div className="text-2xl font-bold">SKP AI · Style Transfer</div>
           {window.aistudio ? (
-            <button onClick={handleOpenKeyDialog} className="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
-              API 키 선택하기 <ChevronRight size={20} />
+            <button onClick={handleOpenKeyDialog} className="w-full py-3 bg-white text-black font-bold rounded-lg flex items-center justify-center gap-2">
+              API 키 선택 <ChevronRight size={16} />
             </button>
           ) : (
-            <div className="text-left bg-white/5 border border-white/10 rounded-xl p-5 space-y-3 text-sm text-gray-400">
-              <p className="font-bold text-white">로컬 실행 방법</p>
-              <ol className="space-y-2 list-decimal list-inside">
-                <li><code className="text-orange-400">.env.local</code> 파일 생성</li>
-                <li><code className="text-orange-400">VITE_GEMINI_API_KEY=your_key</code> 추가</li>
-                <li>서버 재시작</li>
-              </ol>
+            <div className="text-left bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-gray-400 space-y-2">
+              <p className="text-white font-bold">.env.local 설정 필요</p>
+              <code className="text-orange-400">VITE_GEMINI_API_KEY=your_key</code>
             </div>
           )}
         </div>
@@ -137,101 +85,143 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <header className="border-b border-white/10 px-6 py-4 flex justify-between items-center sticky top-0 bg-[#0a0a0a]/80 backdrop-blur-xl z-50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center">
-            <Layers size={24} />
-          </div>
-          <span className="font-bold text-xl">Interior Style Transfer</span>
+    <div className="min-h-screen bg-[#111] text-white flex flex-col" style={{fontFamily: 'Pretendard, -apple-system, sans-serif'}}>
+      {/* Top Nav */}
+      <header className="h-12 border-b border-white/10 flex items-center px-4 gap-4 shrink-0">
+        <div className="text-sm font-bold text-white/40 flex items-center gap-2">
+          <span className="text-white">AI Lab</span>
+          <span>/</span>
+          <span>Image to Render</span>
         </div>
-        <button onClick={() => { setBaseImage(null); setResultImage(null); if (!isStyleLocked) setReferenceImage(null); }} className="p-2 hover:bg-white/5 rounded-full text-gray-400">
-          <RefreshCw size={20} />
-        </button>
+        <div className="ml-auto flex items-center gap-3">
+          {resultImage && (
+            <button onClick={downloadResult} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md transition-colors">
+              <Download size={12} /> 저장
+            </button>
+          )}
+          <button onClick={() => { setBaseImage(null); setReferenceImage(null); setResultImage(null); }} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md transition-colors">
+            <RefreshCw size={12} /> 초기화
+          </button>
+        </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-4 space-y-8">
-          <section className="space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2">
-              <Camera size={16} /> 1. 공간의 형태 (Form)
-            </h2>
-            <div onClick={() => baseInputRef.current?.click()} className={`relative aspect-video rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-3 ${baseImage ? 'border-orange-500/50' : 'border-white/10 hover:border-white/20'}`}>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Panel */}
+        <aside className="w-56 border-r border-white/10 flex flex-col shrink-0 overflow-y-auto">
+          {/* Form Image */}
+          <div className="p-3 border-b border-white/10">
+            <p className="text-[10px] text-white/40 uppercase tracking-widest mb-2">공간 구조 (Form)</p>
+            <div
+              onClick={() => baseInputRef.current?.click()}
+              className={`aspect-video rounded-lg border border-dashed cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-2 transition-colors ${baseImage ? 'border-white/30' : 'border-white/15 hover:border-white/30'}`}
+            >
               <input type="file" ref={baseInputRef} onChange={(e) => handleImageUpload(e, 'base')} className="hidden" accept="image/*" />
-              {baseImage ? <img src={baseImage} alt="Base" className="w-full h-full object-cover" /> : <><Upload className="text-gray-500" /><span className="text-sm text-gray-400">구조 원본 사진</span></>}
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2">
-                <ImageIcon size={16} /> 2. 분위기와 마감 (Style)
-              </h2>
-              <button onClick={() => setIsStyleLocked(!isStyleLocked)} className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full ${isStyleLocked ? 'bg-orange-500 text-white' : 'bg-white/5 text-gray-400'}`}>
-                {isStyleLocked ? <><Lock size={10} /> 고정됨</> : <><Unlock size={10} /> 고정 안함</>}
-              </button>
-            </div>
-            <div onClick={() => !isStyleLocked && refInputRef.current?.click()} className={`relative aspect-video rounded-2xl border-2 border-dashed overflow-hidden flex flex-col items-center justify-center gap-3 ${referenceImage ? 'border-blue-500/50' : 'border-white/10 hover:border-white/20'} ${isStyleLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
-              <input type="file" ref={refInputRef} onChange={(e) => handleImageUpload(e, 'ref')} className="hidden" accept="image/*" disabled={isStyleLocked} />
-              {referenceImage ? <img src={referenceImage} alt="Reference" className="w-full h-full object-cover" /> : <><ImageIcon className="text-gray-500" /><span className="text-sm text-gray-400">스타일 참조 이미지</span></>}
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-gray-500">3. 상세 요청 (선택)</h2>
-            <textarea value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)} placeholder="강조하고 싶은 부분을 적어주세요." className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:border-orange-500 resize-none" />
-          </section>
-
-          <button onClick={handleGenerate} disabled={isGenerating || !baseImage || !referenceImage} className={`w-full py-5 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all ${isGenerating || !baseImage || !referenceImage ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-orange-500 text-white hover:bg-orange-600'}`}>
-            {isGenerating ? <><RefreshCw className="animate-spin" /> 스타일 복제 중...</> : '스타일 복제 렌더링 시작'}
-          </button>
-
-          {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-400 text-sm">
-              <AlertCircle size={18} className="shrink-0 mt-0.5" />
-              <p>{error}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="lg:col-span-8">
-          <div className="bg-white/5 border border-white/10 rounded-3xl min-h-[600px] flex flex-col overflow-hidden">
-            <div className="p-6 border-b border-white/10 flex justify-between items-center">
-              <h3 className="font-bold flex items-center gap-2">
-                <CheckCircle2 size={18} className="text-orange-500" /> 복제된 렌더링 결과
-              </h3>
-              {resultImage && (
-                <button onClick={downloadResult} className="flex items-center gap-2 text-xs font-bold bg-white text-black px-4 py-2 rounded-full hover:bg-gray-200">
-                  <Download size={14} /> 이미지 저장
-                </button>
-              )}
-            </div>
-            <div className="flex-1 flex items-center justify-center p-8">
-              {isGenerating ? (
-                <div className="text-center space-y-6">
-                  <div className="relative w-24 h-24 mx-auto">
-                    <div className="absolute inset-0 border-4 border-orange-500/20 rounded-full" />
-                    <div className="absolute inset-0 border-4 border-t-orange-500 rounded-full animate-spin" />
-                  </div>
-                  <p className="text-xl font-bold">스타일 분석 중...</p>
-                </div>
-              ) : resultImage ? (
-                <div className="w-full flex flex-col items-center gap-4">
-                  <img src={resultImage} alt="Result" className="max-w-full object-contain rounded-xl shadow-2xl" referrerPolicy="no-referrer" />
-                  <button onClick={() => { setReferenceImage(resultImage); setIsStyleLocked(true); }} className="text-[11px] font-bold text-orange-500 border border-orange-500/30 px-4 py-2 rounded-full hover:bg-orange-500/10">
-                    이 결과물을 다음 작업의 스타일 기준으로 고정
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center opacity-30">
-                  <ImageIcon size={80} className="mx-auto mb-4" />
-                  <p className="text-lg">왼쪽에서 사진을 업로드하세요</p>
-                </div>
-              )}
+              {baseImage
+                ? <img src={baseImage} alt="Base" className="w-full h-full object-cover" />
+                : <><Upload size={16} className="text-white/30" /><span className="text-[10px] text-white/30">구조 사진 업로드</span></>
+              }
             </div>
           </div>
-        </div>
-      </main>
+
+          {/* Style Image */}
+          <div className="p-3 border-b border-white/10">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] text-white/40 uppercase tracking-widest">스타일 참조 (Style)</p>
+              <button onClick={() => setIsStyleLocked(!isStyleLocked)} className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded transition-colors ${isStyleLocked ? 'bg-white/20 text-white' : 'text-white/30 hover:text-white/60'}`}>
+                {isStyleLocked ? <><Lock size={8} />고정</> : <><Unlock size={8} />고정 안함</>}
+              </button>
+            </div>
+            <div
+              onClick={() => !isStyleLocked && refInputRef.current?.click()}
+              className={`aspect-video rounded-lg border border-dashed overflow-hidden flex flex-col items-center justify-center gap-2 transition-colors ${referenceImage ? 'border-white/30' : 'border-white/15 hover:border-white/30'} ${isStyleLocked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <input type="file" ref={refInputRef} onChange={(e) => handleImageUpload(e, 'ref')} className="hidden" accept="image/*" disabled={isStyleLocked} />
+              {referenceImage
+                ? <img src={referenceImage} alt="Ref" className="w-full h-full object-cover" />
+                : <><Upload size={16} className="text-white/30" /><span className="text-[10px] text-white/30">스타일 사진 업로드</span></>
+              }
+            </div>
+          </div>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Render Button */}
+          <div className="p-3">
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating || !baseImage || !referenceImage}
+              className={`w-full py-2.5 rounded-lg text-sm font-bold transition-all ${isGenerating || !baseImage || !referenceImage ? 'bg-white/10 text-white/30 cursor-not-allowed' : 'bg-white text-black hover:bg-gray-200'}`}
+            >
+              {isGenerating ? <span className="flex items-center justify-center gap-2"><RefreshCw size={14} className="animate-spin" />분석 중...</span> : '+ Render'}
+            </button>
+            {error && <p className="text-red-400 text-[10px] mt-2 text-center">{error}</p>}
+          </div>
+        </aside>
+
+        {/* Main Canvas */}
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex items-center justify-center p-8 bg-[#111]" style={{backgroundImage: 'radial-gradient(circle, #ffffff08 1px, transparent 1px)', backgroundSize: '24px 24px'}}>
+            {isGenerating ? (
+              <div className="text-center space-y-4">
+                <div className="relative w-16 h-16 mx-auto">
+                  <div className="absolute inset-0 border-2 border-white/10 rounded-full" />
+                  <div className="absolute inset-0 border-2 border-t-white rounded-full animate-spin" />
+                </div>
+                <p className="text-sm text-white/60">스타일 분석 중...</p>
+              </div>
+            ) : resultImage ? (
+              <div className="flex flex-col items-center gap-4 max-w-4xl w-full">
+                <img src={resultImage} alt="Result" className="max-w-full max-h-[65vh] object-contain rounded-xl shadow-2xl" />
+                <button
+                  onClick={() => { setReferenceImage(resultImage); setIsStyleLocked(true); }}
+                  className="text-xs text-white/50 border border-white/15 px-4 py-2 rounded-full hover:bg-white/10 transition-colors"
+                >
+                  이 결과물을 스타일 기준으로 고정
+                </button>
+              </div>
+            ) : (
+              <div className="text-center text-white/20">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/5 flex items-center justify-center">
+                  <Plus size={24} />
+                </div>
+                <p className="text-sm">왼쪽에서 이미지를 업로드하세요</p>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Prompt Bar */}
+          <div className="border-t border-white/10 px-4 py-3 flex items-center gap-3">
+            <span className="text-[10px] text-white/30 uppercase tracking-widest shrink-0">PROMPT</span>
+            <input
+              type="text"
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="추가 프롬프트 입력 (선택사항)..."
+              className="flex-1 bg-transparent text-sm text-white/70 placeholder-white/20 outline-none"
+              onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+            />
+          </div>
+        </main>
+
+        {/* Right History Panel */}
+        <aside className="w-48 border-l border-white/10 flex flex-col shrink-0">
+          <div className="p-3 border-b border-white/10 flex items-center justify-between">
+            <span className="text-[10px] text-white/40 uppercase tracking-widest">히스토리</span>
+            <button onClick={() => { setBaseImage(null); setReferenceImage(null); setResultImage(null); setHistory([]); }} className="text-[9px] text-white/20 hover:text-white/50">전체삭제</button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-2">
+            {history.length === 0
+              ? <p className="text-[10px] text-white/20 text-center pt-4">렌더링 기록이 없습니다</p>
+              : history.map((img, i) => (
+                <div key={i} onClick={() => setResultImage(img)} className="aspect-video rounded-lg overflow-hidden cursor-pointer hover:ring-1 hover:ring-white/30 transition-all">
+                  <img src={img} alt={`history-${i}`} className="w-full h-full object-cover" />
+                </div>
+              ))
+            }
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
