@@ -17,7 +17,7 @@ import {
   Lock,
   Unlock
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { generateRender } from './services/geminiService';
 
 declare global {
