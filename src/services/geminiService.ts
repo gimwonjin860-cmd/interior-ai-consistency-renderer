@@ -5,19 +5,46 @@ const getMimeType = (dataUrl: string): string => {
   return match ? match[1] : "image/jpeg";
 };
 
-const getImageAspectRatio = (dataUrl: string): Promise<"1:1" | "4:3" | "16:9" | "3:4" | "9:16"> => {
+const getImageDimensions = (dataUrl: string): Promise<{width: number, height: number}> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.width, height: img.height });
+    img.src = dataUrl;
+  });
+};
+
+const cropToRatio = (dataUrl: string, targetWidth: number, targetHeight: number): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const ratio = img.width / img.height;
-      if (ratio > 1.7) resolve("16:9");
-      else if (ratio > 1.2) resolve("4:3");
-      else if (ratio < 0.6) resolve("9:16");
-      else if (ratio < 0.85) resolve("3:4");
-      else resolve("1:1");
+      const canvas = document.createElement('canvas');
+      const targetRatio = targetWidth / targetHeight;
+      const srcRatio = img.width / img.height;
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if (srcRatio > targetRatio) {
+        sw = img.height * targetRatio;
+        sx = (img.width - sw) / 2;
+      } else {
+        sh = img.width / targetRatio;
+        sy = (img.height - sh) / 2;
+      }
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
+      resolve(canvas.toDataURL('image/jpeg', 0.95));
     };
     img.src = dataUrl;
   });
+};
+
+const getNearestAspectRatio = (width: number, height: number): "1:1" | "4:3" | "16:9" | "3:4" | "9:16" => {
+  const ratio = width / height;
+  if (ratio > 1.7) return "16:9";
+  if (ratio > 1.2) return "4:3";
+  if (ratio < 0.6) return "9:16";
+  if (ratio < 0.85) return "3:4";
+  return "1:1";
 };
 
 export async function generateRender({
@@ -32,7 +59,8 @@ export async function generateRender({
   customPrompt: string;
 }) {
   const ai = new GoogleGenAI({ apiKey });
-  const aspectRatio = await getImageAspectRatio(baseImage);
+  const { width: inputW, height: inputH } = await getImageDimensions(baseImage);
+  const aspectRatio = getNearestAspectRatio(inputW, inputH);
 
   const systemInstruction = `You are a photorealistic architectural visualization renderer.
 당신은 건축 인테리어 시각화 전문 렌더러입니다.
@@ -50,34 +78,24 @@ Produce a finished photorealistic render of Image 1's camera view, applying Imag
 이미지 1의 카메라 앵글 그대로, 이미지 2의 마감재와 분위기를 적용하여 완성된 포토리얼 렌더링을 만드세요.
 
 WHAT TO TAKE FROM IMAGE 1 / 이미지 1에서 가져올 것:
-- All geometry exactly: ceiling shape, wall positions, column positions, floor layout, openings, facade
-- 모든 지오메트리 그대로: 천장 형태, 벽 위치, 기둥 위치, 바닥 레이아웃, 개구부, 파사드
-- Camera angle, perspective, and framing — do NOT change at all
-- 카메라 앵글, 투시도, 프레이밍 — 절대 변경 금지
-- Position and shape of all LED/media art display panels
-- LED/미디어아트 디스플레이 패널의 위치와 형태
+- All geometry exactly: ceiling shape, wall positions, column positions, floor layout, openings, facade / 모든 지오메트리 그대로
+- Camera angle and perspective — do NOT change at all / 카메라 앵글 절대 변경 금지
+- Position and shape of all LED/media art display panels / LED 패널 위치와 형태
 
 WHAT TO TAKE FROM IMAGE 2 / 이미지 2에서 가져올 것:
-- Floor material, color, texture / 바닥 마감재, 색상, 질감
-- Wall finish and color tone / 벽 마감재와 색상 톤
-- Column surface material / 기둥 표면 마감재
-- Ceiling material finish only — NOT ceiling shape / 천장 마감재만 — 천장 형태는 절대 금지
-- Lighting: warmth, brightness, shadows / 조명: 색온도, 밝기, 그림자
-- Overall color palette and mood / 전체 색상 팔레트와 분위기
-- LED/media art content: apply Image 2's media art onto the LED panels in Image 1
-- LED/미디어아트 콘텐츠: 이미지 2의 미디어아트를 이미지 1의 LED 패널에 적용
+- Floor material, color, texture / 바닥 마감재
+- Wall finish and color tone / 벽 마감재
+- Column surface material / 기둥 마감재
+- Ceiling: take NOTHING from Image 2 for the ceiling shape or finish. Render the ceiling exactly as it appears in Image 1. / 천장: 이미지 2에서 천장 관련 어떤 것도 가져오지 마세요. 이미지 1 천장 그대로.
+- Lighting warmth, brightness, shadows / 조명 분위기
+- Overall color palette and mood / 전체 색상 팔레트
+- LED/media art content: apply Image 2's media art onto the LED panels in Image 1 / LED 미디어아트: 이미지 2의 미디어아트를 이미지 1의 LED 패널에 적용
 
 CRITICAL RULES / 절대 규칙:
-1. CEILING SHAPE: Copy the ceiling shape 100% from Image 1. Never add louvers, slats, beams, or any ceiling element that is not visible in Image 1.
-   천장 형태: 이미지 1의 천장 형태를 100% 그대로 복사하세요. 이미지 1에 없는 루버, 슬랫, 보 등 어떤 천장 요소도 추가하지 마세요.
-2. LOUVERS RULE: Only render louvers/slats if they are clearly visible in Image 1. If Image 1 shows a smooth ceiling, render a smooth ceiling. Period.
-   루버 규칙: 이미지 1에 루버/슬랫이 명확히 보이는 경우에만 렌더링하세요. 이미지 1이 매끈한 천장이면 매끈한 천장으로 렌더링하세요. 끝.
-3. ASPECT RATIO: The output image must have the exact same aspect ratio and framing as Image 1. Do not crop or stretch.
-   비율: 출력 이미지는 이미지 1과 정확히 동일한 비율과 프레이밍이어야 합니다. 자르거나 늘리지 마세요.
-4. LED PANELS: Apply Image 2's media art content onto the LED panel locations from Image 1.
-   LED 패널: 이미지 1의 LED 패널 위치에 이미지 2의 미디어아트 콘텐츠를 적용하세요.
-5. Never copy people, signage, text, or furniture layout from Image 2.
-   이미지 2의 사람, 사이니지, 텍스트, 가구 배치를 절대 복사하지 마세요.
+1. CEILING: Copy ceiling 100% from Image 1. Never add any ceiling element not in Image 1. / 천장은 이미지 1에서 100% 복사. 이미지 1에 없는 천장 요소 절대 추가 금지.
+2. FRAMING: Render only what is visible in Image 1's camera frame. Do not add space above, below, or to the sides. / 프레이밍: 이미지 1 카메라 프레임 안에 보이는 것만 렌더링. 위아래 좌우로 공간 추가 절대 금지.
+3. LED PANELS: Apply Image 2's media art onto LED panel locations from Image 1. / LED: 이미지 1 위치에 이미지 2 미디어아트 적용.
+4. Never copy people, signage, text, or furniture layout from Image 2. / 이미지 2의 사람, 텍스트, 가구 배치 절대 복사 금지.
 
 ${customPrompt ? `Additional / 추가: ${customPrompt}` : ""}`;
 
@@ -94,7 +112,11 @@ ${customPrompt ? `Additional / 추가: ${customPrompt}` : ""}`;
   });
 
   for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
+    if (part.inlineData) {
+      const resultDataUrl = `data:image/png;base64,${part.inlineData.data}`;
+      // crop to match input aspect ratio exactly
+      return await cropToRatio(resultDataUrl, inputW, inputH);
+    }
   }
 
   throw new Error("이미지 생성에 실패했습니다.");
